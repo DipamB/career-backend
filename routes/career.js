@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Career = require('../models/Career');
 const auth = require('../middleware/auth');
+
 // GET all careers
 router.get('/', async (req, res) => {
   try {
@@ -25,15 +26,11 @@ router.get('/:id', async (req, res) => {
 
 // POST add new career
 router.post('/add', auth, async (req, res) => {
-    try {
+  try {
     const { title, description, requiredSkills, recommendedCourses, averageSalary, jobDemand } = req.body;
     const career = new Career({
-      title,
-      description,
-      requiredSkills,
-      recommendedCourses,
-      averageSalary,
-      jobDemand
+      title, description, requiredSkills,
+      recommendedCourses, averageSalary, jobDemand
     });
     await career.save();
     res.status(201).json({ message: 'Career added successfully', career });
@@ -51,6 +48,7 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
+
 // Connect to Drishtanta's AI engine
 router.post('/recommend', auth, async (req, res) => {
   try {
@@ -59,12 +57,11 @@ router.post('/recommend', auth, async (req, res) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req.body)
     });
-
     const data = await response.json();
     res.json(data);
-
   } catch (err) {
     res.status(500).json({ message: 'AI engine error', error: err.message });
   }
 });
+
 module.exports = router;
