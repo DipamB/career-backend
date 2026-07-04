@@ -51,5 +51,20 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
+// Connect to Drishtanta's AI engine
+router.post('/recommend', auth, async (req, res) => {
+  try {
+    const response = await fetch('https://person2-ai-engine.onrender.com/recommend', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body)
+    });
 
+    const data = await response.json();
+    res.json(data);
+
+  } catch (err) {
+    res.status(500).json({ message: 'AI engine error', error: err.message });
+  }
+});
 module.exports = router;
