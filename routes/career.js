@@ -50,17 +50,54 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Connect to Drishtanta's AI engine
+const AI_ENGINE_URL = 'https://person2-ai-engine.onrender.com/recommend';
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 router.post('/recommend', auth, async (req, res) => {
-  try {
-    const response = await fetch('https://person2-ai-engine.onrender.com/recommend', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(req.body)
-    });
-    const data = await response.json();
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ message: 'AI engine error', error: err.message });
+  const maxAttempts = 5;
+  const delayMs = 8000;
+
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await fetch(AI_ENGINE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req.body)
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+
+      if (!response.ok || !contentType.includes('application/json')) {
+        lastError = `AI engine returned ${response.status} with content-type "${contentType}"`;
+        if (attempt < maxAttempts) {
+          await sleep(delayMs);
+          continue;
+        }
+        return res.status(502).json({
+          message: 'AI engine is unavailable right now (it may be waking up). Please try again in a minute.',
+          error: lastError
+        });
+      }
+
+      const data = await response.json();
+      return res.json(data);
+
+    } catch (err) {
+      lastError = err.message;
+      if (attempt < maxAttempts) {
+        await sleep(delayMs);
+        continue;
+      }
+      return res.status(502).json({
+        message: 'AI engine is unavailable right now (it may be waking up). Please try again in a minute.',
+        error: lastError
+      });
+    }
   }
 });
 
