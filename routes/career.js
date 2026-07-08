@@ -57,8 +57,8 @@ function sleep(ms) {
 }
 
 router.post('/recommend', auth, async (req, res) => {
-  const maxAttempts = 5;
-  const delayMs = 8000;
+const maxAttempts = 9;
+const delayMs = 10000; // 10s between attempts, ~ up to 90s total wait for a slow cold start
 
   let lastError = null;
 
