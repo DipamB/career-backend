@@ -50,6 +50,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Connect to Drishtanta's AI engine
+const axios = require('axios');
 const AI_ENGINE_URL = 'https://person2-ai-engine.onrender.com/recommend';
 
 function sleep(ms) {
@@ -57,48 +58,36 @@ function sleep(ms) {
 }
 
 router.post('/recommend', auth, async (req, res) => {
-const maxAttempts = 9;
-const delayMs = 10000; // 10s between attempts, ~ up to 90s total wait for a slow cold start
+  const maxAttempts = 3;
+  const perAttemptTimeoutMs = 100000; // 100s — covers slow cold starts/LLM calls
+  const delayBetweenAttemptsMs = 5000;
 
   let lastError = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const response = await fetch(AI_ENGINE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(req.body)
+      const response = await axios.post(AI_ENGINE_URL, req.body, {
+        timeout: perAttemptTimeoutMs,
+        headers: { 'Content-Type': 'application/json' }
       });
 
-      const contentType = response.headers.get('content-type') || '';
-
-      if (!response.ok || !contentType.includes('application/json')) {
-        lastError = `AI engine returned ${response.status} with content-type "${contentType}"`;
-        if (attempt < maxAttempts) {
-          await sleep(delayMs);
-          continue;
-        }
-        return res.status(502).json({
-          message: 'AI engine is unavailable right now (it may be waking up). Please try again in a minute.',
-          error: lastError
-        });
-      }
-
-      const data = await response.json();
-      return res.json(data);
+      return res.json(response.data);
 
     } catch (err) {
-      lastError = err.message;
+      lastError = err.response
+        ? `AI engine returned ${err.response.status}`
+        : err.message;
+
       if (attempt < maxAttempts) {
-        await sleep(delayMs);
+        await sleep(delayBetweenAttemptsMs);
         continue;
       }
+
       return res.status(502).json({
-        message: 'AI engine is unavailable right now (it may be waking up). Please try again in a minute.',
+        message: 'AI engine is unavailable right now (it may be waking up or slow). Please try again in a minute.',
         error: lastError
       });
     }
   }
 });
-
 module.exports = router;
